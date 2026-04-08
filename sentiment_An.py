@@ -15,7 +15,7 @@ def build_vocab(datasets,min_frq=3):
     vocab={'<pad>':0,'<unk>':1}
     for word,count in counter.items():
         if count>=min_frq:
-            vocab[word]=len(word)
+            vocab[word]=len(vocab)
     return vocab
 
 #Imdb dataset
@@ -23,13 +23,13 @@ class IMDBdataset(torch.utils.data.Dataset):
     def __init__(self,data,vocab):
         self.data=[]
         self.vocab=vocab
-        unk=vocab['unk']
+        unk=vocab['<unk>']
 
         for sample in data:
             tokens=tokenizer(sample['text'])
             indices=[vocab.get(t,unk) for t in tokens]
             labels=sample['label']
-            self.data.append((torch.tensor(indices,dtype=torch.long()),labels))
+            self.data.append((torch.tensor(indices,dtype=torch.long),labels))
         
     def __len__(self):
         return len(self.data)
@@ -41,7 +41,7 @@ class IMDBdataset(torch.utils.data.Dataset):
 #padding
 def collate_fn(batch):
     texts,label=zip(*batch)
-    padded=torch.nn.utils.rnn.pad_packed_sequence(batch_first=True,padding_value=0)
+    padded=torch.nn.utils.rnn.pad_sequence(texts,batch_first=True,padding_value=0)
     lengths=torch.tensor([len(t) for t in texts])
     label=torch.tensor(label,dtype=torch.float)
     return padded,lengths,label
@@ -69,7 +69,7 @@ class Lstmclassifier(torch.nn.Module):
     def forward(self,text,lengths):
 
         embeded=self.dropout(self.embeded(text))
-        packed=torch.nn.utils.rnn.pack_padded_sequence(embeded,lengths,batch_first=True,enforce_sorted=True)
+        packed=torch.nn.utils.rnn.pack_padded_sequence(embeded,lengths,batch_first=True,enforce_sorted=False)
 
         _,(hidden,cell)=self.lstm(packed)
 
@@ -94,6 +94,7 @@ raw           = load_dataset('imdb')
 vocab         = build_vocab(raw['train'])
 train_dataset = IMDBdataset(raw['train'], vocab)
 test_dataset  = IMDBdataset(raw['test'],  vocab)
+VOCAB_SIZE = len(vocab)     
 
 train_loader=torch.utils.data.DataLoader(train_dataset,shuffle=True,batch_size=BATCH_SIZE,collate_fn=collate_fn)
 test_loader=torch.utils.data.DataLoader(test_dataset,shuffle=False,batch_size=BATCH_SIZE,collate_fn=collate_fn)
@@ -121,7 +122,7 @@ def train_epoch(model,loader):
         pred=(torch.sigmoid(predictions)>0.5).float()
         correct+=(label==pred).sum().item()
         
-        return total_loss/len(loader),correct/len(loader.dataset)
+    return total_loss/len(loader),correct/len(loader.dataset)
     
 def evaluate(model,loader):
     model.eval()
@@ -131,29 +132,29 @@ def evaluate(model,loader):
             text,label=text.to(DEVICE),label.to(DEVICE)
 
             optimizer.zero_grad()
-            predictions=model(text)
-            loss=Criterion(predictions,lengths)
+            predictions=model(text,lengths)
+            loss=Criterion(predictions,label)
 
             total_loss+=loss.item()
             pred=(torch.sigmoid(predictions)>0.5).float()
             correct+=(label==pred).sum().item()
 
-            return total_loss/len(loader) ,correct/len(loader.dataset)
+        return total_loss/len(loader) ,correct/len(loader.dataset)
         
 #run 
 for epoch in range(EPOCHS):
     train_loss,train_acc=train_epoch(model,train_loader)
     test_loss,test_acc=evaluate(model,test_loader)
     print(f'Epoch {epoch+1}/{EPOCHS}')
-    print(f"Train loss: {train_loss}|Train Acc: {train_acc}")
-    print(f'Test loss: {test_loss}| Test acc: {test_acc}')
+    print(f"Train loss: {train_loss:.2f}|Train Acc: {train_acc:.2f}")
+    print(f'Test loss: {test_loss:.2f}| Test acc: {test_acc:.2f}')
 
 def predict(text):
     model.eval()
     tokens=tokenizer(text)
-    indices=[vocab.get(t,vocab['unk']) for t in tokens]
+    indices=[vocab.get(t,vocab['<unk>']) for t in tokens]
     lengths=torch.tensor([len(indices)])
-    tensor=torch.tensor.unsqueeze(0).to(DEVICE)
+    tensor=torch.tensor(indices).unsqueeze(0).to(DEVICE)
 
     with torch.no_grad():
         logits=model(tensor,lengths)
