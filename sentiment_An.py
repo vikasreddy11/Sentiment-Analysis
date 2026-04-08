@@ -145,3 +145,21 @@ for epoch in range(EPOCHS):
     print(f'Epoch {epoch+1}/{EPOCHS}')
     print(f"Train loss: {train_loss}|Train Acc: {train_acc}")
     print(f'Test loss: {test_loss}| Test acc: {test_acc}')
+
+def predict(text):
+    model.eval()
+    tokens=tokenizer(text)
+    indices=[len(t) for t in text]
+    lengths=torch.tensor(len(indices))
+    tensor=torch.tensor.unsqueeze(0).to(DEVICE)
+
+    with torch.no_grad():
+        logits=model(tensor,lengths)
+        prob=torch.sigmoid(logits).items()
+
+    label="POS" if prob>0.5 else 'NEG'
+    print(f"{text} {label} (confidence: {prob:.2f})")
+
+predict("one scene is good but the movie is worst")
+predict("this was an absolutely brilliant masterpiece")
+predict("terrible boring waste of my time")
