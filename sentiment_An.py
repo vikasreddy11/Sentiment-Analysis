@@ -10,9 +10,9 @@ def build_vocab(datasets,min_frq=3):
 
     counter=Counter()
     for sample in datasets:
-        counter.update(tokenizer(sample('text')))
+        counter.update(tokenizer(sample['text']))
 
-    vocab={'PAD':0,'UNK':1}
+    vocab={'<pad>':0,'<unk>':1}
     for word,count in counter.items():
         if count>=min_frq:
             vocab[word]=len(word)
@@ -23,27 +23,27 @@ class IMDBdataset(torch.utils.data.Dataset):
     def __init__(self,data,vocab):
         self.data=[]
         self.vocab=vocab
-        unk=vocab['UNK']
+        unk=vocab['unk']
 
         for sample in data:
-            tokens=tokenizer(sample)
+            tokens=tokenizer(sample['text'])
             indices=[vocab.get(t,unk) for t in tokens]
             labels=sample['label']
-            self.data.append((torch.tensor(indices,dtype=torch.long())))
+            self.data.append((torch.tensor(indices,dtype=torch.long()),labels))
         
-    def __len__(self,data):
+    def __len__(self):
         return len(self.data)
     
     def __getitem__(self, index):
-        return super(index)
+        return self.data[index]
 
 
 #padding
 def collate_fn(batch):
     texts,label=zip(*batch)
     padded=torch.nn.utils.rnn.pad_packed_sequence(batch_first=True,padding_value=0)
-    lengths=torch.tensor(len(t) for t in texts)
-    label=torch.tensor(label,dtype=torch.float())
+    lengths=torch.tensor([len(t) for t in texts])
+    label=torch.tensor(label,dtype=torch.float)
     return padded,lengths,label
 
 
@@ -51,6 +51,7 @@ def collate_fn(batch):
 #LStm classifier
 class Lstmclassifier(torch.nn.Module):
     def __init__(self,vocab_size,embed_dim,hidden_dim,n_layers,pad_idx):
+        super().__init__()
 
         self.embeded=torch.nn.Embedding(vocab_size,embed_dim,padding_idx=pad_idx)
         self.lstm=torch.nn.LSTM(
@@ -62,25 +63,23 @@ class Lstmclassifier(torch.nn.Module):
             dropout=0.4
         )
 
-        self.fc=torch.nn.Linear(hidden_dim*2,2)
+        self.fc=torch.nn.Linear(hidden_dim*2,1)
         self.dropout=torch.nn.Dropout(0.4)
 
     def forward(self,text,lengths):
 
         embeded=self.dropout(self.embeded(text))
-        packed=torch.nn.utils.rnn.pack_padded_sequence(text,batch_first=True,enforce_sorted=True)
+        packed=torch.nn.utils.rnn.pack_padded_sequence(embeded,lengths,batch_first=True,enforce_sorted=True)
 
         _,(hidden,cell)=self.lstm(packed)
 
-        hidden=torch.cat(hidden[-2],hidden[-1],dim=1)
+        hidden=torch.cat([hidden[-2],hidden[-1]],dim=1)
         hidden=self.dropout(hidden)
-        return self.fc(hidden).squezze(1)
+        return self.fc(hidden).squeeze(1)
     
 
 #setting
-vocab=build_vocab()
 BATCH_SIZE=32
-VOCAB_SIZE=len(vocab)
 EMBEDED_DIM=100
 HIDDEN_DIM=256
 N_LAYERS=2
@@ -90,8 +89,11 @@ EPOCHS=10
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-train_dataset=IMDBdataset('train')
-test_dataset=IMDBdataset('test')
+from datasets import load_dataset
+raw           = load_dataset('imdb')
+vocab         = build_vocab(raw['train'])
+train_dataset = IMDBdataset(raw['train'], vocab)
+test_dataset  = IMDBdataset(raw['test'],  vocab)
 
 train_loader=torch.utils.data.DataLoader(train_dataset,shuffle=True,batch_size=BATCH_SIZE,collate_fn=collate_fn)
 test_loader=torch.utils.data.DataLoader(test_dataset,shuffle=False,batch_size=BATCH_SIZE,collate_fn=collate_fn)
@@ -105,11 +107,11 @@ optimizer=torch.optim.Adam(model.parameters(),lr=1e-3)
 def train_epoch(model,loader):
     model.train()
     total_loss,correct=0,0
-    for text,label,lengths in loader:
+    for text,lengths,label in loader:
         text,label=text.to(DEVICE),label.to(DEVICE)
 
         optimizer.zero_grad()
-        predictions=model(text,label)
+        predictions=model(text,lengths)
         loss=Criterion(predictions,label)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(),max_norm=1)
@@ -119,24 +121,24 @@ def train_epoch(model,loader):
         pred=(torch.sigmoid(predictions)>0.5).float()
         correct+=(label==pred).sum().item()
         
-        return total_loss/len(loader),correct/len(loader)
+        return total_loss/len(loader),correct/len(loader.dataset)
     
 def evaluate(model,loader):
     model.eval()
     correct,total_loss=0,0
     with torch.no_grad():
-        for text,label in loader:
+        for text,lengths,label in loader:
             text,label=text.to(DEVICE),label.to(DEVICE)
 
             optimizer.zero_grad()
             predictions=model(text)
-            loss=Criterion(predictions,label)
+            loss=Criterion(predictions,lengths)
 
             total_loss+=loss.item()
             pred=(torch.sigmoid(predictions)>0.5).float()
             correct+=(label==pred).sum().item()
 
-            return total_loss/len(loader) ,correct/len(loader)
+            return total_loss/len(loader) ,correct/len(loader.dataset)
         
 #run 
 for epoch in range(EPOCHS):
@@ -149,8 +151,8 @@ for epoch in range(EPOCHS):
 def predict(text):
     model.eval()
     tokens=tokenizer(text)
-    indices=[len(t) for t in text]
-    lengths=torch.tensor(len(indices))
+    indices=[vocab.get(t,vocab['unk']) for t in tokens]
+    lengths=torch.tensor([len(indices)])
     tensor=torch.tensor.unsqueeze(0).to(DEVICE)
 
     with torch.no_grad():
