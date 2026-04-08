@@ -84,7 +84,7 @@ EMBEDED_DIM=100
 HIDDEN_DIM=256
 N_LAYERS=2
 PAD_IDX=0
-EPOCHS=10
+EPOCHS=3
 
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -158,7 +158,7 @@ def predict(text):
 
     with torch.no_grad():
         logits=model(tensor,lengths)
-        prob=torch.sigmoid(logits).items()
+        prob=torch.sigmoid(logits).item()
 
     label="POS" if prob>0.5 else 'NEG'
     print(f"{text} {label} (confidence: {prob:.2f})")
