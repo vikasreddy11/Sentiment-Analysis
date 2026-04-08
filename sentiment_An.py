@@ -85,6 +85,7 @@ EMBEDED_DIM=100
 HIDDEN_DIM=256
 N_LAYERS=2
 PAD_IDX=0
+EPOCHS=10
 
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -95,8 +96,52 @@ test_dataset=IMDBdataset('test')
 train_loader=torch.utils.data.DataLoader(train_dataset,shuffle=True,batch_size=BATCH_SIZE,collate_fn=collate_fn)
 test_loader=torch.utils.data.DataLoader(test_dataset,shuffle=False,batch_size=BATCH_SIZE,collate_fn=collate_fn)
 
-model=Lstmclassifier(embed_dim=EMBEDED_DIM,hidden_dim=HIDDEN_DIM,n_layers=N_LAYERS,pad_idx=PAD_IDX,vocab_size=VOCAB_SIZE)
+model=Lstmclassifier(embed_dim=EMBEDED_DIM,hidden_dim=HIDDEN_DIM,n_layers=N_LAYERS,pad_idx=PAD_IDX,vocab_size=VOCAB_SIZE).to(DEVICE)
 
 Criterion=torch.nn.BCEWithLogitsLoss()
 optimizer=torch.optim.Adam(model.parameters(),lr=1e-3)
 
+#train and evaluate
+def train_epoch(model,loader):
+    model.train()
+    total_loss,correct=0,0
+    for text,label,lengths in loader:
+        text,label=text.to(DEVICE),label.to(DEVICE)
+
+        optimizer.zero_grad()
+        predictions=model(text,label)
+        loss=Criterion(predictions,label)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(),max_norm=1)
+        optimizer.step()
+
+        total_loss+=loss.item()
+        pred=(torch.sigmoid(predictions)>0.5).float()
+        correct+=(label==pred).sum().item()
+        
+        return total_loss/len(loader),correct/len(loader)
+    
+def evaluate(model,loader):
+    model.eval()
+    correct,total_loss=0,0
+    with torch.no_grad():
+        for text,label in loader:
+            text,label=text.to(DEVICE),label.to(DEVICE)
+
+            optimizer.zero_grad()
+            predictions=model(text)
+            loss=Criterion(predictions,label)
+
+            total_loss+=loss.item()
+            pred=(torch.sigmoid(predictions)>0.5).float()
+            correct+=(label==pred).sum().item()
+
+            return total_loss/len(loader) ,correct/len(loader)
+        
+#run 
+for epoch in range(EPOCHS):
+    train_loss,train_acc=train_epoch(model,train_loader)
+    test_loss,test_acc=evaluate(model,test_loader)
+    print(f'Epoch {epoch+1}/{EPOCHS}')
+    print(f"Train loss: {train_loss}|Train Acc: {train_acc}")
+    print(f'Test loss: {test_loss}| Test acc: {test_acc}')
