@@ -43,13 +43,13 @@ python sentiment_An.py
 
 ## Sample Output
 
-Epoch 1/10
-Train loss: 0.66|Train Acc: 0.59
-Test loss: 0.77| Test acc: 0.51
+- Epoch 1/10
+- Train loss: 0.66|Train Acc: 0.59
+- Test loss: 0.77| Test acc: 0.51
 
-one scene is good but the movie is worst NEG (confidence: 0.01)
-this was an absolutely brilliant masterpiece POS (confidence: 0.97)
-terrible boring waste of my time NEG (confidence: 0.01)
+- one scene is good but the movie is worst NEG (confidence: 0.01)
+- this was an absolutely brilliant masterpiece POS (confidence: 0.97)
+- terrible boring waste of my time NEG (confidence: 0.01)
 
 
 ## Author
