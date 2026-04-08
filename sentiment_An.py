@@ -77,4 +77,26 @@ class Lstmclassifier(torch.nn.Module):
         return self.fc(hidden).squezze(1)
     
 
+#setting
+vocab=build_vocab()
+BATCH_SIZE=32
+VOCAB_SIZE=len(vocab)
+EMBEDED_DIM=100
+HIDDEN_DIM=256
+N_LAYERS=2
+PAD_IDX=0
+
+DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+train_dataset=IMDBdataset('train')
+test_dataset=IMDBdataset('test')
+
+train_loader=torch.utils.data.DataLoader(train_dataset,shuffle=True,batch_size=BATCH_SIZE,collate_fn=collate_fn)
+test_loader=torch.utils.data.DataLoader(test_dataset,shuffle=False,batch_size=BATCH_SIZE,collate_fn=collate_fn)
+
+model=Lstmclassifier(embed_dim=EMBEDED_DIM,hidden_dim=HIDDEN_DIM,n_layers=N_LAYERS,pad_idx=PAD_IDX,vocab_size=VOCAB_SIZE)
+
+Criterion=torch.nn.BCEWithLogitsLoss()
+optimizer=torch.optim.Adam(model.parameters(),lr=1e-3)
 
