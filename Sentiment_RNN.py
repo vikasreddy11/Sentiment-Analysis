@@ -12,7 +12,7 @@ def build_vocab(dataset,min_frq=3):
     for sample in dataset:
         counter.update(tokenizer(sample['text']))
 
-    vocab={'<pad':0,'<unk>':1}
+    vocab={'<pad>':0,'<unk>':1}
     for word,count in counter.items():
         if count>=3:
             vocab[word]=len(vocab)
@@ -43,9 +43,9 @@ class IMDBdataset(torch.utils.data.Dataset):
 def collate_fn(batch):
     text,label=zip(*batch)
     padded=torch.nn.utils.rnn.pad_sequence(text,batch_first=True,padding_value=0)
-    lengths=torch.tensor(len(t) for t in text)
-    indices=torch.tensor(label,dtype=torch.float)
-    return padded,lengths,indices
+    lengths=torch.tensor([len(t) for t in text])
+    label=torch.tensor(label,dtype=torch.float)
+    return padded,lengths,label
 
 #RNN
 class RNNClassifier(torch.nn.Module):
@@ -69,7 +69,7 @@ class RNNClassifier(torch.nn.Module):
     def forward(self,text,lengths):
 
         embeded=self.dropout(self.embed(text))
-        packed=torch.nn.utils.rnn.pack_padded_sequence(embeded,lengths,enforce_sorted=True,batch_first=True)
+        packed=torch.nn.utils.rnn.pack_padded_sequence(embeded,lengths,batch_first=True,enforce_sorted=False)
 
         _,hidden=self.rnn(packed)
 
@@ -117,10 +117,10 @@ def train_epoch(model,loader):
         optimizer.step()
 
         total_loss+=loss.item()
-        pred=(torch.sigmoid(predictions)>0.5).float
+        pred=(torch.sigmoid(predictions)>0.5).float()
         correct+=(pred==label).sum().item()
     
-    return total_loss/len(loader),correct/len(loader)
+    return total_loss/len(loader),correct/len(loader.dataset)
 
 #evaluate
 def evaluate(model,loader):
@@ -135,10 +135,10 @@ def evaluate(model,loader):
             loss=Criterion(predictions,label)
 
             total_loss+=loss.item()
-            pred=(torch.sigmoid(predictions)>0.5).float
+            pred=(torch.sigmoid(predictions)>0.5).float()
             correct+=(pred==label).sum().item()
 
-    return total_loss/len(loader), correct/len(loader)
+    return total_loss/len(loader), correct/len(loader.dataset)
 
 #Run
 for epoch in range(EPOCHS):
@@ -151,13 +151,17 @@ for epoch in range(EPOCHS):
 def predict(text):
     model.eval()
     tokens=tokenizer(text)
-    indices=[vocab.get(t,'<unk>') for t in tokens]
-    lengths=torch.tensor(len(indices))
-    tensor=torch.tensor(lengths)
+    indices=[vocab.get(t,vocab['<unk>']) for t in tokens]
+    lengths=torch.tensor([len(indices)])
+    tensor=torch.tensor(indices).unsqueeze(0).to(DEVICE)
 
     with torch.no_grad():
-        logits=model(text,lengths)
+        logits=model(tensor,lengths)
         prob=torch.sigmoid(logits).item()
 
-    label="Positive" if prob > 0.5 else 'Negitive'
+    label="Positive" if prob > 0.5 else 'Negative'
     print(f"{text} {label} (confidence: {prob:.2f})")
+
+predict("one scene is good but the movie is worst")
+predict("this was an absolutely brilliant masterpiece")
+predict("terrible boring waste of my time")
