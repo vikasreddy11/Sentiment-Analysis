@@ -84,6 +84,7 @@ BATCH_SIZE=32
 EMBED_DIM=100
 HIDDEN_DIM=256
 N_LAYERS=2
+EPOCHS=10
 
 from datasets import load_dataset
 raw           = load_dataset('imdb')
@@ -120,3 +121,43 @@ def train_epoch(model,loader):
         correct+=(pred==label).sum().item()
     
     return total_loss/len(loader),correct/len(loader)
+
+#evaluate
+def evaluate(model,loader):
+    model.eval()
+    correct,total_loss=0,0
+    with torch.no_grad():   
+        for text,lengths,label in loader:
+            text,label =text.to(DEVICE),label.to(DEVICE)
+
+            optimizer.zero_grad()
+            predictions=model(text,lengths)
+            loss=Criterion(predictions,label)
+
+            total_loss+=loss.item()
+            pred=(torch.sigmoid(predictions)>0.5).float
+            correct+=(pred==label).sum().item()
+
+    return total_loss/len(loader), correct/len(loader)
+
+#Run
+for epoch in range(EPOCHS):
+    train_loss,train_acc=train_epoch(model,train_loader)
+    test_loss,test_acc=evaluate(model,test_loader)
+    print(f'Epoch {epoch+1}/{EPOCHS}')
+    print(f'train_loss: {train_loss:.2f} | train_acc: {train_acc:.2f}')
+    print(f'test_loss: {test_loss:.2f} | test_acc: {test_acc:.2f}')
+
+def predict(text):
+    model.eval()
+    tokens=tokenizer(text)
+    indices=[vocab.get(t,'<unk>') for t in tokens]
+    lengths=torch.tensor(len(indices))
+    tensor=torch.tensor(lengths)
+
+    with torch.no_grad():
+        logits=model(text,lengths)
+        prob=torch.sigmoid(logits).item()
+
+    label="Positive" if prob > 0.5 else 'Negitive'
+    print(f"{text} {label} (confidence: {prob:.2f})")
