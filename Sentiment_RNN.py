@@ -49,20 +49,34 @@ def collate_fn(batch):
 
 #RNN
 class RNNClassifier(torch.nn.Module):
-    def __init__(self,vocab_size,embed_dim,hidden_dim,n_layers,pad_idx=0):
+    def __init__(self,model_type,vocab_size,embed_dim,hidden_dim,n_layers,pad_idx=0):
         super().__init__()
 
         self.embed=torch.nn.Embedding(vocab_size,embed_dim,padding_idx=pad_idx)
-        self.rnn=torch.nn.RNN(
-            input_size=embed_dim,
-            hidden_size=hidden_dim,
-            num_layers=n_layers,
-            batch_first=True,
-            bidirectional=True,
-            nonlinearity='tanh',
-            dropout=0.4
-        )
+        self.model_type=model_type.lower()
 
+        if self.model_type == "rnn":
+            self.rnn = torch.nn.RNN(
+                embed_dim,
+                hidden_dim,
+                n_layers,
+                batch_first=True,
+                bidirectional=True,
+                dropout=0.4
+            )
+
+        elif self.model_type == "gru":
+            self.rnn = torch.nn.GRU(
+                embed_dim, 
+                hidden_dim, 
+                n_layers,
+                batch_first=True, 
+                bidirectional=True, 
+                dropout=0.4
+            )
+        else:
+            raise ValueError("model_type must be 'rnn' or 'gru'")
+        
         self.fc=torch.nn.Linear(hidden_dim*2,1)
         self.dropout=torch.nn.Dropout(0.4)
 
@@ -97,7 +111,7 @@ train_loader=torch.utils.data.DataLoader(train_dataset,shuffle=True,batch_size=B
 test_loader=torch.utils.data.DataLoader(test_dataset,shuffle=False,batch_size=BATCH_SIZE,collate_fn=collate_fn)
 
 
-model=RNNClassifier(embed_dim=EMBED_DIM,hidden_dim=HIDDEN_DIM,n_layers=N_LAYERS,vocab_size=VOCAB_SIZE).to(DEVICE)
+model=RNNClassifier(model_type='rnn',embed_dim=EMBED_DIM,hidden_dim=HIDDEN_DIM,n_layers=N_LAYERS,vocab_size=VOCAB_SIZE).to(DEVICE)
 
 Criterion=torch.nn.BCEWithLogitsLoss()
 optimizer=torch.optim.Adam(model.parameters(),lr=1e-3)
