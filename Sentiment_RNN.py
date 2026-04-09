@@ -48,4 +48,33 @@ def collate_fn(batch):
     return padded,lengths,indices
 
 #RNN
+class RNNClassifier(torch.nn.Module):
+    def __init__(self,vocab_size,embed_dim,hidden_dim,n_layers,pad_idx=0):
+        super().__init__()
 
+        self.embed=torch.nn.Embedding(vocab_size,embed_dim,padding_idx=pad_idx)
+        self.rnn=torch.nn.RNN(
+            input_size=embed_dim,
+            hidden_size=hidden_dim,
+            num_layers=n_layers,
+            batch_first=True,
+            bidirectional=True,
+            nonlinearity='tanh',
+            dropout=0.4
+        )
+
+        self.fc=torch.nn.Linear(hidden_dim*2,1)
+        self.dropout=torch.nn.Dropout(0.4)
+
+    def forward(self,text,lengths):
+
+        embeded=self.dropout(self.embed(text))
+        packed=torch.nn.utils.rnn.pack_padded_sequence(embeded,lengths,enforce_sorted=True,batch_first=True)
+
+        _,hidden=self.rnn(packed)
+
+        hidden=torch.cat([hidden[-2],hidden[-1]],dim=1)
+        hidden=self.dropout(hidden)
+
+        return self.fc(hidden).squeeze(1)
+    
