@@ -78,3 +78,45 @@ class RNNClassifier(torch.nn.Module):
 
         return self.fc(hidden).squeeze(1)
     
+#setting 
+DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+BATCH_SIZE=32
+EMBED_DIM=100
+HIDDEN_DIM=256
+N_LAYERS=2
+
+from datasets import load_dataset
+raw           = load_dataset('imdb')
+vocab         = build_vocab(raw['train'])
+train_dataset = IMDBdataset(raw['train'], vocab)
+test_dataset  = IMDBdataset(raw['test'],  vocab)
+VOCAB_SIZE = len(vocab)     
+
+train_loader=torch.utils.data.DataLoader(train_dataset,shuffle=True,batch_size=BATCH_SIZE,collate_fn=collate_fn)
+test_loader=torch.utils.data.DataLoader(test_dataset,shuffle=False,batch_size=BATCH_SIZE,collate_fn=collate_fn)
+
+
+model=RNNClassifier(embed_dim=EMBED_DIM,hidden_dim=HIDDEN_DIM,n_layers=N_LAYERS,vocab_size=VOCAB_SIZE).to(DEVICE)
+
+Criterion=torch.nn.BCEWithLogitsLoss()
+optimizer=torch.optim.Adam(model.parameters(),lr=1e-3)
+
+#train
+def train_epoch(model,loader):
+    model.train()
+    correct,total_loss=0,0
+    for text,lengths,label in loader:
+        text,label=text.to(DEVICE),label.to(DEVICE)
+
+        optimizer.zero_grad()
+        predictions=model(text,lengths)
+        loss=Criterion(predictions,label)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(),max_norm=1)
+        optimizer.step()
+
+        total_loss+=loss.item()
+        pred=(torch.sigmoid(predictions)>0.5).float
+        correct+=(pred==label).sum().item()
+    
+    return total_loss/len(loader),correct/len(loader)
