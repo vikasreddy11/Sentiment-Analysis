@@ -84,7 +84,7 @@ EMBEDED_DIM=100
 HIDDEN_DIM=256
 N_LAYERS=2
 PAD_IDX=0
-EPOCHS=3
+EPOCHS=10
 
 DEVICE=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
