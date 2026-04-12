@@ -6,7 +6,7 @@ Binary text classification on IMDB movie reviews — positive or negative.
 | Model |AVG Test Accuracy |
 |-------|--------------|
 | BiLSTM  | ~87% |
-| RNN     |      |
+| RNN     |  ~68% |
 | GRU     |      |
 
 ## Model Architecture
@@ -62,8 +62,14 @@ python sentiment_Model.py
 - terrible boring waste of my time NEG (confidence: 0.01)
 
 ### RNN
+- one scene is good but the movie is worst Positive (confidence: 0.92)
+- this was an absolutely brilliant masterpiece Negative (confidence: 0.27)
+- terrible boring waste of my time Negative (confidence: 0.01)
 
 ### GRU
+one scene is good but the movie is worst Negative (confidence: 0.00)
+this was an absolutely brilliant masterpiece Positive (confidence: 1.00)
+terrible boring waste of my time Negative (confidence: 0.00)
 
 ## Author
 **Vikas Reddy**
