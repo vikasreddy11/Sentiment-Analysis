@@ -11,7 +11,7 @@ Binary text classification on IMDB movie reviews — positive or negative.
 |-------|--------------|
 | BiLSTM  | ~87% |
 | RNN     |  ~68% |
-| GRU     |    ~89  |
+| GRU     |    ~89%  |
 
 ## Model Architecture
 ```
