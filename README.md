@@ -17,7 +17,7 @@ Tokenization
 ↓
 Embedding Layer 
 ↓
-Bidirectional LSTM
+Model
 ↓
 Concatenate
 ↓
@@ -36,6 +36,8 @@ Sigmoid → probability (>0.5 = Positive)
 - LSTM Gates (forget, input, output)
 - Bidirectional LSTM
 - Gradient Clipping
+- GRU 
+- RNN 
 
 ## Setup
 ```bash
@@ -45,7 +47,7 @@ python sentiment_LSTM.py
 
 ```bash
 pip install torch datasets
-python sentiment_RNN.py
+python sentiment_Model.py
 ```
 
 ## Sample Output
