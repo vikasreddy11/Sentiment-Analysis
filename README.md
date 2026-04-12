@@ -3,9 +3,11 @@
 Binary text classification on IMDB movie reviews — positive or negative.
 
 ## Results
-| Model | Test Accuracy |
+| Model |AVG Test Accuracy |
 |-------|--------------|
 | BiLSTM  | ~87% |
+| RNN     |      |
+| GRU     |      |
 
 ## Model Architecture
 ```
@@ -38,7 +40,12 @@ Sigmoid → probability (>0.5 = Positive)
 ## Setup
 ```bash
 pip install torch datasets
-python sentiment_An.py
+python sentiment_LSTM.py
+```
+
+```bash
+pip install torch datasets
+python sentiment_RNN.py
 ```
 
 ## Sample Output
@@ -47,10 +54,14 @@ python sentiment_An.py
 - Train loss: 0.66|Train Acc: 0.59
 - Test loss: 0.77| Test acc: 0.51
 
+### LSTM
 - one scene is good but the movie is worst NEG (confidence: 0.01)
 - this was an absolutely brilliant masterpiece POS (confidence: 0.97)
 - terrible boring waste of my time NEG (confidence: 0.01)
 
+### RNN
+
+### GRU
 
 ## Author
 **Vikas Reddy**
