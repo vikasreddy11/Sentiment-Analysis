@@ -1,9 +1,5 @@
 # Sentiment Analysis with Bidirectional LSTM ,RNN and GRU 
 
-![Python](https://img.shields.io/badge/Python-3.13-blue)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.0-red)
-![GPU](https://img.shields.io/badge/GPU-RTX3050-green)
-
 Binary text classification on IMDB movie reviews — positive or negative.
 
 ## Results
